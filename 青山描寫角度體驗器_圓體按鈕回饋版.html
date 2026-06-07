@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>青山描寫角度體驗器</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Arial Rounded MT Bold","Nunito","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  font-weight:900;
+  background:#eef7ef;
+  color:#1f2933;
+}
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-columns:1fr 330px;
+}
+.viewer{
+  position:relative;
+  background:linear-gradient(#bfe8ff 0%,#eaf8ff 55%,#dff3d8 100%);
+  overflow:hidden;
+}
+#canvas{
+  position:absolute;
+  inset:0;
+}
+.header{
+  position:absolute;
+  left:28px;
+  top:24px;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.75);
+  border-radius:22px;
+  padding:16px 20px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.header h1{
+  margin:0 0 6px;
+  font-size:32px;
+  color:#2f6b3c;
+}
+.header p{
+  margin:0;
+  color:#52616b;
+  font-size:16px;
+}
+.current{
+  position:absolute;
+  left:28px;
+  bottom:24px;
+  background:rgba(31,41,51,.72);
+  color:white;
+  padding:12px 18px;
+  border-radius:18px;
+  font-size:19px;
+  font-weight:900;
+}
+.panel{
+  background:#fffdf4;
+  border-left:1px solid #e6dec7;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  box-shadow:-8px 0 28px rgba(0,0,0,.08);
+}
+.panel h2{
+  margin:0;
+  color:#2f6b3c;
+  font-size:25px;
+}
+.buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+button{
+  border:0;
+  border-radius:18px;
+  padding:13px 8px;
+  font-size:17px;
+  font-weight:900;
+  background:linear-gradient(#f3fff0,#d8efd6);
+  color:#24452a;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow:0 5px 0 #a5c99a, 0 8px 14px rgba(0,0,0,.10);
+}
+button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 7px 0 #93bd87, 0 11px 18px rgba(0,0,0,.13);
+}
+button:active{
+  transform:translateY(4px) scale(.98);
+  box-shadow:0 1px 0 #6d9c63, 0 3px 8px rgba(0,0,0,.16);
+}
+button.active{
+  background:linear-gradient(#8bd889,#55b95d);
+  color:white;
+  box-shadow:0 5px 0 #2f8b3c, 0 8px 14px rgba(0,0,0,.14);
+}
+.card{
+  background:white;
+  border:2px solid #d9ead8;
+  border-radius:20px;
+  padding:16px;
+}
+.angle{
+  font-size:24px;
+  font-weight:900;
+  color:#2f6b3c;
+  margin-bottom:8px;
+}
+.desc{
+  line-height:1.65;
+  color:#3b4a54;
+  font-size:16px;
+}
+.words{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.word{
+  background:#f1f8ec;
+  border:1px solid #b9d8aa;
+  color:#315c2b;
+  padding:7px 11px;
+  border-radius:999px;
+  font-size:15px;
+  font-weight:900;
+  box-shadow:0 3px 0 #c8dfbd;
+  animation:pop .18s ease both;
+}
+@keyframes pop{
+  from{transform:scale(.85);opacity:.35}
+  to{transform:scale(1);opacity:1}
+}
+.card.bump{
+  animation:bump .2s ease both;
+}
+@keyframes bump{
+  0%{transform:scale(1)}
+  45%{transform:scale(1.025)}
+  100%{transform:scale(1)}
+}
+.controls{
+  background:#f8fbf2;
+  border:1px solid #d9ead8;
+  border-radius:18px;
+  padding:14px;
+}
+.controls label{
+  display:block;
+  font-weight:900;
+  color:#315c2b;
+  margin-bottom:8px;
+}
+input[type=range]{width:100%}
+@media(max-width:850px){
+  .app{grid-template-columns:1fr}
+  .viewer{height:62vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="viewer">
+    <div id="canvas"></div>
+    <div class="header">
+      <h1>青山描寫角度體驗器</h1>
+      <p>調整鏡頭角度，觀察青山在不同視角下的感覺。</p>
+    </div>
+    <div class="current" id="current">目前角度：平視</div>
+  </main>
+
+  <aside class="panel">
+    <h2>選擇觀察角度</h2>
+    <div class="buttons">
+      <button class="active" onclick="setView('front',this)">平視</button>
+      <button onclick="setView('low',this)">仰視</button>
+      <button onclick="setView('high',this)">俯視</button>
+      <button onclick="setView('side',this)">側面</button>
+      <button onclick="setView('close',this)">山峰特寫</button>
+      <button onclick="setView('far',this)">遠景</button>
+    </div>
+
+    <div class="card">
+      <div class="angle" id="angle">平視</div>
+      <div class="desc" id="desc">視線與山腰高度相近，能清楚看到山體輪廓和層次，感覺自然、平穩。</div>
+      <div class="words" id="words"></div>
+    </div>
+
+    <div class="controls">
+      <label>光線方向</label>
+      <input id="lightSlider" type="range" min="-5" max="5" step="0.1" value="-3">
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const container = document.getElementById("canvas");
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xbfe8ff, 12, 35);
+
+const camera = new THREE.PerspectiveCamera(42, container.clientWidth/container.clientHeight, 0.1, 100);
+camera.position.set(0,3.2,9);
+
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(container.clientWidth,container.clientHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const hemi = new THREE.HemisphereLight(0xffffff,0x6b8f5f,1.35);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xfff0c2,3.2);
+sun.position.set(-3,7,5);
+sun.castShadow=true;
+scene.add(sun);
+
+const fill = new THREE.PointLight(0xa8e6ff,1.1,25);
+fill.position.set(4,4,5);
+scene.add(fill);
+
+// Materials
+const mountainMat = new THREE.MeshStandardMaterial({
+  color:0x5f9f58,
+  roughness:.88,
+  metalness:.02,
+  flatShading:true
+});
+const darkMountainMat = new THREE.MeshStandardMaterial({
+  color:0x3f7b43,
+  roughness:.9,
+  metalness:.02,
+  flatShading:true
+});
+const rockMat = new THREE.MeshStandardMaterial({
+  color:0x8c806e,
+  roughness:.92,
+  flatShading:true
+});
+const grassMat = new THREE.MeshStandardMaterial({
+  color:0x8bcf65,
+  roughness:.85,
+  flatShading:true
+});
+
+// Mountain group
+const mountain = new THREE.Group();
+scene.add(mountain);
+
+function makeCone(radius, height, x, z, colorMat, scaleX=1, scaleZ=1){
+  const geo = new THREE.ConeGeometry(radius, height, 7, 5);
+  const mesh = new THREE.Mesh(geo, colorMat);
+  mesh.position.set(x,height/2,z);
+  mesh.scale.set(scaleX,1,scaleZ);
+  mesh.castShadow=true;
+  mesh.receiveShadow=true;
+  mountain.add(mesh);
+  return mesh;
+}
+
+makeCone(2.35,4.3,0,0,mountainMat,1.15,.95);
+makeCone(1.8,3.5,-2.1,.65,darkMountainMat,.9,1.1);
+makeCone(1.55,3.15,2.0,.5,darkMountainMat,1.1,.85);
+makeCone(1.15,2.5,-3.2,1.2,mountainMat,1,.9);
+makeCone(1.05,2.2,3.1,1.25,mountainMat,.9,1);
+
+// ridge lines / rock patches
+for(let i=0;i<15;i++){
+  const geo = new THREE.BoxGeometry(.12,.55,.06);
+  const mesh = new THREE.Mesh(geo, rockMat);
+  const angle = Math.random()*Math.PI*2;
+  const r = .4 + Math.random()*2.2;
+  mesh.position.set(Math.cos(angle)*r, 1.1+Math.random()*1.8, Math.sin(angle)*r*.55 + .12);
+  mesh.rotation.set(Math.random()*.5, angle, Math.random()*1.4);
+  mesh.castShadow=true;
+  mountain.add(mesh);
+}
+
+// base island
+const base = new THREE.Mesh(
+  new THREE.CylinderGeometry(5.2,5.6,.45,80),
+  grassMat
+);
+base.position.y=.18;
+base.castShadow=true;
+base.receiveShadow=true;
+scene.add(base);
+
+// lake
+const lake = new THREE.Mesh(
+  new THREE.CircleGeometry(1.45,64),
+  new THREE.MeshStandardMaterial({color:0x6cc4e8,roughness:.35,metalness:.05,transparent:true,opacity:.78})
+);
+lake.rotation.x=-Math.PI/2;
+lake.position.set(-2.2,.43,2.05);
+scene.add(lake);
+
+// trees
+const trunkMat = new THREE.MeshStandardMaterial({color:0x7a4a22,roughness:.8});
+const leafMat = new THREE.MeshStandardMaterial({color:0x2f9a45,roughness:.8,flatShading:true});
+function tree(x,z,s=1){
+  const t = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.06*s,.08*s,.45*s,10),trunkMat);
+  trunk.position.y=.65*s;
+  const leaf = new THREE.Mesh(new THREE.ConeGeometry(.28*s,.7*s,8),leafMat);
+  leaf.position.y=1.15*s;
+  trunk.castShadow=leaf.castShadow=true;
+  t.add(trunk,leaf);
+  t.position.set(x,0,z);
+  scene.add(t);
+}
+for(let i=0;i<24;i++){
+  const a=Math.random()*Math.PI*2;
+  const r=2.8+Math.random()*2.0;
+  tree(Math.cos(a)*r, Math.sin(a)*r, .75+Math.random()*.45);
+}
+
+// Clouds
+const cloudMat = new THREE.MeshStandardMaterial({color:0xffffff,roughness:.95,transparent:true,opacity:.82});
+function cloud(x,y,z,s=1){
+  const g=new THREE.Group();
+  for(let i=0;i<4;i++){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.32*s,16,8),cloudMat);
+    m.position.set(i*.28*s, Math.sin(i)*.06*s, 0);
+    g.add(m);
+  }
+  g.position.set(x,y,z);
+  scene.add(g);
+}
+cloud(-4.5,5,-4,1.1);
+cloud(3.5,4.6,-3,0.9);
+cloud(.8,5.8,-5,1.0);
+
+let camTarget = new THREE.Vector3(0,3.2,9);
+let lookTarget = new THREE.Vector3(0,2.1,0);
+let look = lookTarget.clone();
+
+const views = {
+  front:{
+    title:"平視",
+    desc:"視線與山腰高度相近，能清楚看到山體輪廓和層次，感覺自然、平穩。",
+    words:["平穩","自然","層次分明","青翠","連綿","開闊"],
+    eye:[0,3.0,9], target:[0,2.1,0]
+  },
+  low:{
+    title:"仰視",
+    desc:"鏡頭由山腳向上望，山峰顯得高聳、雄偉，容易營造震撼感。",
+    words:["高聳","雄偉","巍峨","壯觀","直插雲霄","令人敬畏"],
+    eye:[0,.85,5.6], target:[0,3.25,0]
+  },
+  high:{
+    title:"俯視",
+    desc:"鏡頭由高處向下望，能看見山勢、樹林和湖泊的整體布局。",
+    words:["俯瞰","渺小","遼闊","一覽無遺","環抱","布局清晰"],
+    eye:[0,8.6,6.3], target:[0,.9,0]
+  },
+  side:{
+    title:"側面",
+    desc:"從側面觀察，能突出山脊線條和前後山峰的距離感。",
+    words:["側影","山脊","起伏","層巒疊嶂","線條分明","錯落"],
+    eye:[8,3.1,4.4], target:[0,2.0,0]
+  },
+  close:{
+    title:"山峰特寫",
+    desc:"鏡頭推近山峰，能集中觀察岩石、樹影和山頂細節。",
+    words:["山峰","岩石","尖峭","紋理","翠綠","逼近眼前"],
+    eye:[0,3.85,2.9], target:[0,3.25,0]
+  },
+  far:{
+    title:"遠景",
+    desc:"鏡頭拉遠，青山、湖泊和天空同時出現，適合描寫整體氣氛。",
+    words:["遠望","遼闊","寧靜","山明水秀","雲霧繚繞","心曠神怡"],
+    eye:[0,4.4,14.5], target:[0,1.8,0]
+  }
+};
+
+function renderWords(list){
+  const box=document.getElementById("words");
+  box.innerHTML="";
+  list.forEach(w=>{
+    const span=document.createElement("span");
+    span.className="word";
+    span.textContent=w;
+    box.appendChild(span);
+  });
+}
+renderWords(views.front.words);
+
+function setView(type,btn){
+  const v=views[type];
+  camTarget.set(v.eye[0],v.eye[1],v.eye[2]);
+  lookTarget.set(v.target[0],v.target[1],v.target[2]);
+  document.getElementById("angle").textContent=v.title;
+  document.getElementById("desc").textContent=v.desc;
+  document.getElementById("current").textContent="目前角度：" + v.title;
+  renderWords(v.words);
+  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const card=document.querySelector(".card");
+  card.classList.remove("bump");
+  void card.offsetWidth;
+  card.classList.add("bump");
+}
+
+document.getElementById("lightSlider").addEventListener("input", e=>{
+  sun.position.x = Number(e.target.value);
+});
+
+function animate(){
+  requestAnimationFrame(animate);
+  camera.position.lerp(camTarget,.06);
+  look.lerp(lookTarget,.06);
+  camera.lookAt(look);
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener("resize",()=>{
+  camera.aspect=container.clientWidth/container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth,container.clientHeight);
+});
+</script>
+</body>
+</html>
